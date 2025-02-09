@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Leaderboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        table {
+            width: 90%;
+            max-width: 400px;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ccc;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        td {
+            background-color: white;
+        }
+        tr:hover {
+            background-color: #ddd;
+            cursor: pointer;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        .popup button {
+            margin: 5px;
+            padding: 10px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .popup button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h2>Study Leaderboard</h2>
+    <table id="leaderboard">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Hours Studied</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    
+    <div id="popup" class="popup">
+        <p id="popup-name"></p>
+        <button onclick="adjustHours(-1)">-1h</button>
+        <button onclick="adjustHours(-0.25)">-15m</button>
+        <button onclick="adjustHours(0.25)">+15m</button>
+        <button onclick="adjustHours(1)">+1h</button>
+        <button onclick="closePopup()">Close</button>
+    </div>
+
+    <script>
+        let selectedName = '';
+
+        async function fetchData() {
+            const response = await fetch('data.json');
+            const data = await response.json();
+            updateTable(data);
+        }
+
+        function updateTable(data) {
+            const tbody = document.querySelector('#leaderboard tbody');
+            tbody.innerHTML = '';
+            data.sort((a, b) => b.hours - a.hours);
+            data.forEach(person => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${person.name}</td><td>${person.hours.toFixed(2)}</td>`;
+                row.onclick = () => openPopup(person.name);
+                tbody.appendChild(row);
+            });
+        }
+
+        async function adjustHours(amount) {
+            const response = await fetch('data.json');
+            let data = await response.json();
+            data = data.map(person => {
+                if (person.name === selectedName) {
+                    person.hours = Math.max(0, person.hours + amount);
+                }
+                return person;
+            });
+            await saveData(data);
+            updateTable(data);
+            closePopup();
+        }
+
+        async function saveData(data) {
+            await fetch('save.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        function openPopup(name) {
+            selectedName = name;
+            document.getElementById('popup-name').innerText = `Adjust hours for ${name}`;
+            document.getElementById('popup').style.display = 'block';
+        }
+        function closePopup() {
+            document.getElementById('popup').style.display = 'none';
+        }
+        
+        fetchData();
+    </script>
+</body>
+</html>
