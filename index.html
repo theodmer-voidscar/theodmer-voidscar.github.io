@@ -6,60 +6,90 @@
     <title>Study Leaderboard</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #f4f4f4;
+            background-color: #1e1e2e;
+            color: #ffffff;
+        }
+        h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
         }
         table {
             width: 90%;
             max-width: 400px;
             border-collapse: collapse;
-            margin-top: 20px;
+            background: #282a36;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.7);
         }
         th, td {
-            padding: 10px;
+            padding: 15px;
             text-align: center;
-            border: 1px solid #ccc;
+            border-bottom: 1px solid #44475a;
         }
         th {
-            background-color: #007bff;
+            background-color: #6272a4;
             color: white;
+            font-weight: bold;
         }
         td {
-            background-color: white;
+            background-color: #44475a;
+            color: white;
         }
-        tr:hover {
-            background-color: #ddd;
+        tr:hover, .selected {
+            background-color: #50fa7b !important;
+            color: #282a36 !important;
+            font-weight: bold;
             cursor: pointer;
         }
-        .popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            text-align: center;
+        .selected {
+            outline: 3px solid #50fa7b;
+            border-radius: 5px;
+            transition: all 0.2s ease-in-out;
         }
-        .popup button {
+        .control-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #282a36;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+            text-align: center;
+            width: 90%;
+            max-width: 450px;
+        }
+        .control-panel p {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .control-panel button {
             margin: 5px;
-            padding: 10px;
+            padding: 10px 15px;
             border: none;
-            background: #007bff;
-            color: white;
+            font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
+            transition: background 0.2s ease-in-out;
         }
-        .popup button:hover {
-            background: #0056b3;
+        .btn-negative {
+            background: #ff5555;
+            color: white;
+        }
+        .btn-negative:hover {
+            background: #ff2e2e;
+        }
+        .btn-positive {
+            background: #50fa7b;
+            color: #282a36;
+        }
+        .btn-positive:hover {
+            background: #34d058;
         }
     </style>
 </head>
@@ -75,68 +105,69 @@
         <tbody></tbody>
     </table>
     
-    <div id="popup" class="popup">
-        <p id="popup-name"></p>
-        <button onclick="adjustHours(-1)">-1h</button>
-        <button onclick="adjustHours(-0.25)">-15m</button>
-        <button onclick="adjustHours(0.25)">+15m</button>
-        <button onclick="adjustHours(1)">+1h</button>
-        <button onclick="closePopup()">Close</button>
+    <div class="control-panel">
+        <p id="selected-name">Select a name to adjust hours</p>
+        <button class="btn-negative" onclick="adjustHours(-5)">-5h</button>
+        <button class="btn-negative" onclick="adjustHours(-1)">-1h</button>
+        <button class="btn-negative" onclick="adjustHours(-0.25)">-15m</button>
+        <button class="btn-positive" onclick="adjustHours(0.25)">+15m</button>
+        <button class="btn-positive" onclick="adjustHours(1)">+1h</button>
+        <button class="btn-positive" onclick="adjustHours(5)">+5h</button>
     </div>
 
     <script>
         let selectedName = '';
+        const defaultData = [
+            { name: "Enes", hours: 8 },
+            { name: "Safa", hours: 7.15 },
+            { name: "Muzaffer", hours: 5.0 },
+            { name: "Orkun", hours: 4.75 },
+            { name: "Ismail", hours: 1.0 }
+        ];
 
-        async function fetchData() {
-            const response = await fetch('data.json');
-            const data = await response.json();
-            updateTable(data);
+        function getData() {
+            const storedData = localStorage.getItem("studyData");
+            return storedData ? JSON.parse(storedData) : defaultData;
         }
 
-        function updateTable(data) {
+        function saveData(data) {
+            localStorage.setItem("studyData", JSON.stringify(data));
+        }
+
+        function updateTable() {
+            let data = getData();
+            data.sort((a, b) => b.hours - a.hours);
             const tbody = document.querySelector('#leaderboard tbody');
             tbody.innerHTML = '';
-            data.sort((a, b) => b.hours - a.hours);
             data.forEach(person => {
                 const row = document.createElement('tr');
                 row.innerHTML = `<td>${person.name}</td><td>${person.hours.toFixed(2)}</td>`;
-                row.onclick = () => openPopup(person.name);
+                row.onclick = () => selectName(person.name, row);
                 tbody.appendChild(row);
             });
         }
 
-        async function adjustHours(amount) {
-            const response = await fetch('data.json');
-            let data = await response.json();
+        function adjustHours(amount) {
+            if (!selectedName) return;
+            let data = getData();
             data = data.map(person => {
                 if (person.name === selectedName) {
                     person.hours = Math.max(0, person.hours + amount);
                 }
                 return person;
             });
-            await saveData(data);
-            updateTable(data);
-            closePopup();
+            saveData(data);
+            updateTable();
         }
 
-        async function saveData(data) {
-            await fetch('save.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        }
-
-        function openPopup(name) {
+        function selectName(name, row) {
             selectedName = name;
-            document.getElementById('popup-name').innerText = `Adjust hours for ${name}`;
-            document.getElementById('popup').style.display = 'block';
+            document.getElementById('selected-name').innerText = `Adjusting hours for ${name}`;
+            document.querySelectorAll("tr").forEach(tr => tr.classList.remove("selected"));
+            row.classList.add("selected");
         }
-        function closePopup() {
-            document.getElementById('popup').style.display = 'none';
-        }
-        
-        fetchData();
+
+        updateTable();
     </script>
 </body>
 </html>
